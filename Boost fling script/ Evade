@@ -288,4 +288,3 @@ player.CharacterAdded:Connect(function(char)
 end)
 
 print("CameraFlingUI (Instant Delay Stop Applied) Loaded Successfully!")
-!")
