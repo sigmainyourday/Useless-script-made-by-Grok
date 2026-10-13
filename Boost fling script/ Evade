@@ -1,0 +1,291 @@
+-- script made by Grok, ChatGPT, Gemini, and 0.01% of myself.
+
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- [ANTI GAMEPLAY PAUSED] Remove NetworkPause CoreScript to prevent gameplay freeze
+pcall(function()
+    game:GetService("CoreGui").RobloxGui["CoreScripts/NetworkPause"]:Destroy()
+end)
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- Remove previous UI if it exists to avoid duplicates
+local previousUI = playerGui:FindFirstChild("CameraFlingUI")
+if previousUI then
+    previousUI:Destroy()
+end
+
+local character = player.Character or player.CharacterAdded:Wait()
+local root = character:WaitForChild("HumanoidRootPart")
+
+-- Initialize ScreenGui
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "CameraFlingUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.IgnoreGuiInset = true
+ScreenGui.Parent = playerGui
+
+-- [UI] Power Frame Configuration
+local PowerFrame = Instance.new("Frame")
+PowerFrame.Name = "PowerFrame"
+PowerFrame.Size = UDim2.fromOffset(105, 50)
+PowerFrame.Position = UDim2.new(1, -170, 0, 12)
+PowerFrame.BackgroundColor3 = Color3.fromRGB(22, 22, 30)
+PowerFrame.BorderSizePixel = 0
+PowerFrame.Parent = ScreenGui
+
+local PowerCorner = Instance.new("UICorner")
+PowerCorner.CornerRadius = UDim.new(0, 6)
+PowerCorner.Parent = PowerFrame
+
+local PowerTitle = Instance.new("TextLabel")
+PowerTitle.Size = UDim2.new(1, 0, 0, 16)
+PowerTitle.BackgroundTransparency = 1
+PowerTitle.Text = "Power"
+PowerTitle.TextColor3 = Color3.fromRGB(180, 180, 180)
+PowerTitle.Font = Enum.Font.GothamBold
+PowerTitle.TextSize = 10
+PowerTitle.Parent = PowerFrame
+
+local PowerBox = Instance.new("TextBox")
+PowerBox.Name = "PowerBox"
+PowerBox.Size = UDim2.new(1, -8, 0, 26)
+PowerBox.Position = UDim2.fromOffset(4, 20)
+PowerBox.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+PowerBox.Text = "500000"
+PowerBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+PowerBox.Font = Enum.Font.Gotham
+PowerBox.TextSize = 12
+PowerBox.ClearTextOnFocus = false
+PowerBox.Parent = PowerFrame
+
+local PowerBoxCorner = Instance.new("UICorner")
+PowerBoxCorner.CornerRadius = UDim.new(0, 4)
+PowerBoxCorner.Parent = PowerBox
+
+-- [UI] Delay Frame Configuration
+local DelayFrame = Instance.new("Frame")
+DelayFrame.Name = "DelayFrame"
+DelayFrame.Size = UDim2.fromOffset(55, 50)
+DelayFrame.Position = UDim2.new(1, -55, 0, 12)
+DelayFrame.BackgroundColor3 = Color3.fromRGB(22, 22, 30)
+DelayFrame.BorderSizePixel = 0
+DelayFrame.Parent = ScreenGui
+
+local DelayCorner = Instance.new("UICorner")
+DelayCorner.CornerRadius = UDim.new(0, 6)
+DelayCorner.Parent = DelayFrame
+
+local DelayTitle = Instance.new("TextLabel")
+DelayTitle.Size = UDim2.new(1, 0, 0, 16)
+DelayTitle.BackgroundTransparency = 1
+DelayTitle.Text = "Delay"
+DelayTitle.TextColor3 = Color3.fromRGB(180, 180, 180)
+DelayTitle.Font = Enum.Font.GothamBold
+DelayTitle.TextSize = 10
+DelayTitle.Parent = DelayFrame
+
+local DelayBox = Instance.new("TextBox")
+DelayBox.Name = "DelayBox"
+DelayBox.Size = UDim2.new(1, -8, 0, 26)
+DelayBox.Position = UDim2.fromOffset(4, 20)
+DelayBox.BackgroundColor3 = Color3.fromRGB(40, 40, 55)
+DelayBox.Text = "1.2"
+DelayBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+DelayBox.Font = Enum.Font.Gotham
+DelayBox.TextSize = 12
+DelayBox.ClearTextOnFocus = false
+DelayBox.Parent = DelayFrame
+
+local DelayBoxCorner = Instance.new("UICorner")
+DelayBoxCorner.CornerRadius = UDim.new(0, 4)
+DelayBoxCorner.Parent = DelayBox
+
+-- [UI] Toggle UI Button (HIDE/SHOW)
+local ToggleBtn = Instance.new("TextButton")
+ToggleBtn.Name = "ToggleUI"
+ToggleBtn.Size = UDim2.fromOffset(50, 25)
+ToggleBtn.Position = UDim2.new(1, -60, 0, 70)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 65)
+ToggleBtn.Text = "HIDE"
+ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleBtn.Font = Enum.Font.GothamBold
+ToggleBtn.TextSize = 11
+ToggleBtn.Active = true
+ToggleBtn.Draggable = false
+ToggleBtn.Parent = ScreenGui
+
+local ToggleCorner = Instance.new("UICorner")
+ToggleCorner.CornerRadius = UDim.new(0, 4)
+ToggleCorner.Parent = ToggleBtn
+
+local uiVisible = true
+
+local function setUIVisible(visible)
+    uiVisible = visible
+    PowerFrame.Visible = visible
+    DelayFrame.Visible = visible
+    ToggleBtn.Text = visible and "HIDE" or "SHOW"
+end
+
+-- Dragging logic and click toggling for ToggleBtn
+local dragging = false
+local moved = false
+local dragStart
+local startPosition
+local activeInput
+local DRAG_THRESHOLD = 10
+
+ToggleBtn.InputBegan:Connect(function(input)
+    local inputType = input.UserInputType
+    if inputType ~= Enum.UserInputType.MouseButton1 and inputType ~= Enum.UserInputType.Touch then return end
+    if dragging then return end
+
+    dragging = true
+    moved = false
+    activeInput = input
+    dragStart = input.Position
+    startPosition = ToggleBtn.Position
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if not dragging or not dragStart or not startPosition then return end
+    local mouseMove = activeInput and activeInput.UserInputType == Enum.UserInputType.MouseButton1 and input.UserInputType == Enum.UserInputType.MouseMovement
+    if input ~= activeInput and not mouseMove then return end
+
+    local delta = input.Position - dragStart
+    if delta.Magnitude > DRAG_THRESHOLD then
+        moved = true
+    end
+
+    if moved then
+        ToggleBtn.Position = UDim2.new(
+            startPosition.X.Scale,
+            startPosition.X.Offset + delta.X,
+            startPosition.Y.Scale,
+            startPosition.Y.Offset + delta.Y
+        )
+    end
+end)
+
+local function finishDrag(input)
+    if not dragging then return end
+    local matches = input == activeInput
+    if not matches and activeInput and activeInput.UserInputType == Enum.UserInputType.MouseButton1 and input.UserInputType == Enum.UserInputType.MouseButton1 then
+        matches = true
+    end
+    if not matches then return end
+
+    if not moved then
+        setUIVisible(not uiVisible)
+    end
+
+    dragging = false
+    moved = false
+    dragStart = nil
+    startPosition = nil
+    activeInput = nil
+end
+
+ToggleBtn.InputEnded:Connect(finishDrag)
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 and activeInput and activeInput.UserInputType == Enum.UserInputType.MouseButton1 then
+        finishDrag(input)
+    end
+end)
+
+local isFlinging = false
+local lastFlingTime = 0
+local DEBOUNCE_COOLDOWN = 0.5
+
+-- [MAIN FLING FUNCTION] Applies velocity toward camera look direction and abruptly stops after delay
+local function fling()
+    local currentTime = tick()
+    if isFlinging or (currentTime - lastFlingTime < DEBOUNCE_COOLDOWN) then 
+        return 
+    end
+
+    lastFlingTime = currentTime
+
+    local power = tonumber(PowerBox.Text) or 500000
+    local delayTime = tonumber(DelayBox.Text) or 1.2
+    if delayTime < 0 then delayTime = 1.2 end
+
+    if not character or not character.Parent then
+        character = player.Character or player.CharacterAdded:Wait()
+        root = character:WaitForChild("HumanoidRootPart")
+    end
+
+    if not root or not root.Parent then return end
+
+    local camera = Workspace.CurrentCamera
+    if not camera then return end
+
+    isFlinging = true
+    local flingDirection = camera.CFrame.LookVector
+
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        humanoid.PlatformStand = true
+    end
+
+    local startTime = tick()
+    local connection
+
+    connection = RunService.RenderStepped:Connect(function()
+        if not root or not root.Parent then
+            if connection then connection:Disconnect() end
+            isFlinging = false
+            return
+        end
+
+        -- Completely stop Fling immediately when delay time is reached
+        if tick() - startTime >= delayTime then
+            if connection then connection:Disconnect() end
+
+            -- Zero out character velocity and rotational state completely
+            root.AssemblyLinearVelocity = Vector3.zero
+            root.AssemblyAngularVelocity = Vector3.zero
+
+            if humanoid then
+                humanoid.PlatformStand = false
+            end
+            
+            isFlinging = false
+            return
+        end
+
+        -- Continue applying acceleration during the Delay duration
+        root.AssemblyLinearVelocity = flingDirection * power
+        root.AssemblyAngularVelocity = Vector3.zero
+    end)
+end
+
+-- [AUTO-TRIGGER ON DODGE INTEGRATION]
+local actionEvent = ReplicatedStorage:WaitForChild("Events", 5):WaitForChild("Action", 5)
+
+if actionEvent then
+    local oldFireServer
+    oldFireServer = hookmetamethod(game, "__namecall", function(self, ...)
+        local method = getnamecallmethod()
+        
+        if not checkcaller() and self == actionEvent and method == "FireServer" then
+            task.spawn(fling)
+        end
+        
+        return oldFireServer(self, ...)
+    end)
+end
+
+player.CharacterAdded:Connect(function(char)
+    character = char
+    root = char:WaitForChild("HumanoidRootPart")
+end)
+
+print("CameraFlingUI (Instant Delay Stop Applied) Loaded Successfully!")
+!")
